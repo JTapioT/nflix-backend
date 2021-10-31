@@ -9,6 +9,6 @@ export const mediaPostValidation = [
 
 export const reviewPostValidation = [
   body("comment").exists().isString().withMessage("Comment is mandatory field."),
-  body("rate").exists().isInt().withMessage("Rate is mandatory field."),
-  body("elementId").exists().isString().withMessage("elementId is mandatory field.")
+  body("rate").exists().isInt({min: 0, max: 5}).withMessage("Rate is mandatory field.")
 ]
+/*   body("elementId").exists().isString().withMessage("elementId is mandatory field.") */

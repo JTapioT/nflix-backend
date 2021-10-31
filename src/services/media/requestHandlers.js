@@ -1,55 +1,23 @@
-import express from "express";
-import fileTools from "../../utils/fs-tools.js";
-import axios from "axios";
+import { validationResult } from "express-validator";
+import { getMediaJSON, getMediaByIdJSON, writeMedia, writeMediaById, deleteMediaById, writeReviewById, deleteReviewById } from "../../utils/fs-tools.js"
+import createHttpError from "http-errors";
 
-async function fetchOMDBByTitle(title) {
-  let response = await axios.get(
-    `http://www.omdbapi.com/?t=${title}&apikey=2324ee0c`
-  );
-  if (response.status === 200) {
-    console.log(response);
-    let result = {
-      title: response.data.Title,
-      year: response.data.Year,
-      imdbID: response.data.imdbID,
-      type: response.data.Type,
-      poster: response.data.Poster,
-    };
-    return result;
-  } else {
-    return false;
-  }
-}
-
-
-async function getMedia(req,res,next) {
+export async function getMedia(req,res,next) {
   try {
     // Get all media(with reviews);
-    const media = await fileTools.getMediaJSON(req.query.title);
-    if(media) {
-      res.send(media);
-    } else if(req.query.title) {
-      let omdbResults =  await fetchOMDBByTitle(req.query.title);
-      if(omdbResults) {
-        await fileTools.writeMedia(omdbResults);
-        res.send(omdbResults);
-      } else {
-        res.send([]);
-      }
-    } else {
-      res.send([]);
-    }
+    const media = await getMediaJSON(req.query.title);
+    res.send(media);
   } catch (error) {
     console.log("Error with getMedia: ", error);
     next(error);
   }
 }
 
-async function getMediaById(req,res,next) {
+export async function getMediaById(req,res,next) {
   try {
     console.log(req.params.id);
     // Get media by id (with reviews)
-    const mediaById = await fileTools.getMediaByIdJSON(req.params.id);
+    const mediaById = await getMediaByIdJSON(req.params.id);
     res.send(mediaById);
   } catch (error) {
     console.log("Error with get media by id: ", error);
@@ -57,27 +25,33 @@ async function getMediaById(req,res,next) {
   }
 }
 
-async function postMedia(req,res,next) {
+export async function postMedia(req,res,next) {
   try {
-    const newMedia = await fileTools.writeMedia(req.body);
-    res.status(201).send(newMedia);
+    // Handle validationResult accordingly
+    const errorsList = validationResult(req);
+    if (!errorsList.isEmpty()) {
+      next(createHttpError(400, { errorsList }));
+    } else {
+      const newMedia = await writeMedia(req.body);
+      res.status(201).send(newMedia);
+    }
   } catch (error) {
     next(error);
   }
 }
 
-async function updateMedia(req,res,next) {
+export async function updateMedia(req,res,next) {
   try {
-    const updatedRecord = await fileTools.writeMediaById(req.params.id, req.body);
+    const updatedRecord = await writeMediaById(req.params.id, req.body);
     res.send(updatedRecord);
   } catch (error) {
     next(error);
   }
 }
 
-async function deleteMedia(req,res,next) {
+export async function deleteMedia(req,res,next) {
   try {
-    const isDeleted = await fileTools.deleteMediaById(req.params.id);
+    const isDeleted = await deleteMediaById(req.params.id);
     if(isDeleted) {
       res.status(204).send();
     }
@@ -86,15 +60,15 @@ async function deleteMedia(req,res,next) {
   }
 }
 
-
-
-
-const media = {
-  getMedia,
-  getMediaById,
-  updateMedia,
-  deleteMedia,
-  postMedia,
+export async function postReview(req,res,next) {
+  try {
+    const newReview = await writeReviewById(req.params.id, req.body);
+    if(newReview) {
+      res.send(newReview);
+    } else {
+      throw new Error(404, "Media not found by provided ID: ", req.params.id);
+    }
+  } catch (error) {
+    next(error);
+  }
 }
-
-export default media;
